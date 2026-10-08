@@ -207,6 +207,52 @@ expect_contains "новое имя в ответе" '"name":"Оливье по-�
 request PUT /api/dishes/999999 '{"name":"Нет такого"}' "$TOKEN"
 expect_code "PUT несуществующего блюда -> 404" 404
 
+# --- 5a. Заметки блюда ------------------------------------------------------
+section "Заметки блюда"
+NOTES_LONG="$(printf 'a%.0s' $(seq 1 1000))"
+NOTES_TOO_LONG="$(printf 'a%.0s' $(seq 1 1001))"
+
+request GET /api/menu
+expect_contains "notes присутствует в GET /api/menu" '"notes":""'
+
+request PUT "/api/dishes/$DISH_ID" '{"notes":"Готовить 40 минут"}' "$TOKEN"
+expect_code "PUT только notes -> 200" 200
+expect_contains "notes в ответе" '"notes":"Готовить 40 минут"'
+expect_contains "name не изменился" '"name":"Оливье по-новому"'
+
+request PUT "/api/dishes/$DISH_ID" '{"name":"Оливье классический"}' "$TOKEN"
+expect_code "PUT только name -> 200" 200
+expect_contains "notes сохранился" '"notes":"Готовить 40 минут"'
+
+request GET /api/menu
+expect_contains "notes виден в меню" '"notes":"Готовить 40 минут"'
+expect_contains "новое имя видно в меню" '"name":"Оливье классический"'
+
+request PUT "/api/dishes/$DISH_ID" "{\"notes\":\"$NOTES_LONG\"}" "$TOKEN"
+expect_code "notes ровно 1000 символов -> 200" 200
+
+request PUT "/api/dishes/$DISH_ID" "{\"notes\":\"$NOTES_TOO_LONG\"}" "$TOKEN"
+expect_code "notes 1001 символ -> 400" 400
+expect_contains "ошибка Notes too long" '"error":"Notes too long"'
+
+request PUT "/api/dishes/$DISH_ID" '{}' "$TOKEN"
+expect_code "PUT без полей -> 400" 400
+expect_contains "ошибка Nothing to update" '"error":"Nothing to update"'
+
+request PUT "/api/dishes/$DISH_ID" '{"notes":123}' "$TOKEN"
+expect_code "неверный тип notes -> 400 (не 422)" 400
+
+request PUT /api/dishes/999999 '{"notes":"Нет такого"}' "$TOKEN"
+expect_code "notes для несуществующего блюда -> 404" 404
+
+request PUT "/api/dishes/$DISH_ID" '{"notes":"Без токена"}' ""
+expect_code "PUT notes без токена -> 401" 401
+
+request PUT "/api/dishes/$DISH_ID" '{"notes":""}' "$TOKEN"
+expect_code "очистка заметки -> 200" 200
+expect_contains "заметка пуста" '"notes":""'
+
+
 # --- 6. Удаление и каскад ---------------------------------------------------
 section "Удаление и каскад"
 request DELETE "/api/dishes/$DISH_DUP_ID" "" "$TOKEN"

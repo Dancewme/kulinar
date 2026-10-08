@@ -50,6 +50,7 @@ if "*" in ALLOWED_ORIGINS:
     raise RuntimeError('ALLOWED_ORIGIN must not contain "*"')
 
 MAX_NAME_LENGTH = 100
+MAX_NOTES_LENGTH = 1000
 
 
 # --- Работа с БД ------------------------------------------------------------
@@ -91,10 +92,22 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 category_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
+                notes TEXT NOT NULL DEFAULT '',
                 FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
             )
             """
         )
+
+        # Таблица dishes уже могла существовать до появления заметок:
+        # CREATE TABLE IF NOT EXISTS в этом случае ничего не меняет, поэтому
+        # колонка добавляется отдельным ALTER TABLE. Повторный старт падает
+        # на «duplicate column» — это штатная ситуация, а не ошибка.
+        try:
+            conn.execute("ALTER TABLE dishes ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
+        except ValueError as error:
+            if "duplicate column" not in str(error).lower():
+                raise
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS meta (
@@ -180,6 +193,13 @@ class DishCreateBody(BaseModel):
     name: str
 
 
+class DishUpdateBody(BaseModel):
+    """Частичное обновление: None означает «поле не передавали»."""
+
+    name: str | None = None
+    notes: str | None = None
+
+
 # --- Вспомогательные функции ------------------------------------------------
 
 def clean_name(raw: str) -> str:
@@ -189,6 +209,15 @@ def clean_name(raw: str) -> str:
     if len(name) > MAX_NAME_LENGTH:
         raise HTTPException(status_code=400, detail="Name too long")
     return name
+
+
+def clean_notes(raw: str) -> str:
+    # Хвостовые пробелы убираются, чтобы пустая заметка приходила как "".
+    # Ведущие пробелы и переводы строк сохраняются как есть.
+    notes = raw.rstrip()
+    if len(notes) > MAX_NOTES_LENGTH:
+        raise HTTPException(status_code=400, detail="Notes too long")
+    return notes
 
 
 def is_unique_violation(error: ValueError) -> bool:
@@ -221,13 +250,13 @@ def get_menu() -> dict:
             "SELECT id, name FROM categories ORDER BY id ASC"
         ).fetchall()
         dishes = conn.execute(
-            "SELECT id, category_id, name FROM dishes ORDER BY id ASC"
+            "SELECT id, category_id, name, notes FROM dishes ORDER BY id ASC"
         ).fetchall()
 
     dishes_by_category: dict[int, list[dict]] = {}
     for dish in dishes:
         dishes_by_category.setdefault(dish[1], []).append(
-            {"id": dish[0], "name": dish[2]}
+            {"id": dish[0], "name": dish[2], "notes": dish[3]}
         )
 
     return {
@@ -320,15 +349,28 @@ def create_dish(body: DishCreateBody) -> dict:
 
 
 @app.put("/api/dishes/{dish_id}", dependencies=[Depends(require_admin)])
-def update_dish(dish_id: int, body: NameBody) -> dict:
-    name = clean_name(body.name)
+def update_dish(dish_id: int, body: DishUpdateBody) -> dict:
+    """Частичное обновление блюда: меняются только переданные поля."""
+    sets: list[str] = []
+    params: list = []
+    if body.name is not None:
+        sets.append("name = ?")
+        params.append(clean_name(body.name))
+    if body.notes is not None:
+        sets.append("notes = ?")
+        params.append(clean_notes(body.notes))
+    if not sets:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+
     with db() as conn:
         row = conn.execute(
-            "UPDATE dishes SET name = ? WHERE id = ? RETURNING id", (name, dish_id)
+            f"UPDATE dishes SET {', '.join(sets)} WHERE id = ? "
+            "RETURNING id, name, notes",
+            (*params, dish_id),
         ).fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="Not found")
-    return {"id": dish_id, "name": name}
+    return {"id": row[0], "name": row[1], "notes": row[2]}
 
 
 @app.delete("/api/dishes/{dish_id}", dependencies=[Depends(require_admin)])

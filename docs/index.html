@@ -157,7 +157,7 @@
 
     .btn-add:hover { background: #fdf1ea; }
 
-    button:focus-visible, input:focus-visible {
+    button:focus-visible, input:focus-visible, textarea:focus-visible {
       outline: 2px solid #e8b39e;
       outline-offset: 1px;
     }
@@ -178,6 +178,55 @@
       font-size: 14px;
       color: #9a8d86;
     }
+
+    /* Блок заметки: раскрывается инлайн под строкой блюда, без модалок. */
+    .notes-item {
+      margin: 2px 0 8px 6px;
+      padding-left: 10px;
+      border-left: 3px solid #f0d9cd;
+    }
+
+    .notes-view {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #faf6f2;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #5c534e;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .notes-view.notes-empty { color: #9a8d86; font-style: italic; }
+
+    .notes-form { display: flex; flex-direction: column; gap: 8px; }
+
+    .notes-input {
+      font: inherit;
+      width: 100%;
+      min-height: 68px;
+      padding: 8px 10px;
+      border: 1px solid #d8cfc8;
+      border-radius: 8px;
+      color: inherit;
+      resize: vertical;
+    }
+
+    .notes-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .notes-counter {
+      margin-left: auto;
+      font-size: 12px;
+      color: #9a8d86;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .notes-counter.over { color: #a03427; font-weight: 600; }
 
     .banner {
       width: calc(100% - 40px);
@@ -223,6 +272,8 @@
       #categories-list .row { flex: 0 0 auto; }
 
       #categories-list .row-name { max-width: 60vw; }
+
+      .notes-item { margin-left: 0; padding-left: 8px; }
     }
 
     @media (max-width: 400px) {
@@ -257,6 +308,7 @@
     const BACKEND_URL = "https://kulinar-backend.onrender.com";
     const TOKEN_KEY = "kulinar_token";
     const MAX_NAME_LENGTH = 100;
+    const MAX_NOTES_LENGTH = 1000;
 
     // Иконки — статическая разметка. Пользовательские строки всегда идут
     // через textContent, innerHTML используется только для этих констант.
@@ -278,6 +330,8 @@
     let activeCategoryId = null;
     let editing = null;   // { type: "category" | "dish", id: number }
     let adding = null;    // "category" | "dish"
+    let openNotesDishId = null; // id блюда с раскрытой заметкой; открыто только одно
+    let notesFocusPending = null; // id блюда, в поле которого нужно вернуть фокус
     let loginOpen = false;
     let bannerTimer = null;
 
@@ -342,6 +396,7 @@
           clearToken();
           editing = null;
           adding = null;
+          openNotesDishId = null;
           loginOpen = false;
           showMessage("Сессия истекла, войдите заново");
           render();
@@ -394,6 +449,89 @@
       return form;
     }
 
+    // --- Заметка блюда -------------------------------------------------------
+
+    function createNotesBlock(dish) {
+      const notes = typeof dish.notes === "string" ? dish.notes : "";
+      const item = el("li", { className: "notes-item" });
+
+      if (!isAdmin()) {
+        item.append(el("div", {
+          className: "notes-view" + (notes ? "" : " notes-empty"),
+          text: notes || "Заметок нет"
+        }));
+        return item;
+      }
+
+      // maxlength намеренно не ставится: иначе превышение лимита было бы
+      // незаметным обрезанием ввода. Вместо этого — счётчик и явная ошибка.
+      const input = el("textarea", {
+        className: "notes-input",
+        rows: "3",
+        placeholder: "Нажмите, чтобы добавить заметку"
+      });
+      input.value = notes;
+
+      const counter = el("span", { className: "notes-counter" });
+      const updateCounter = () => {
+        counter.textContent = input.value.length + " / " + MAX_NOTES_LENGTH;
+        counter.classList.toggle("over", input.value.length > MAX_NOTES_LENGTH);
+      };
+      input.addEventListener("input", updateCounter);
+      updateCounter();
+
+      const saveBtn = el("button", { type: "button", className: "btn btn-primary btn-small", text: "Сохранить" });
+      const cancelBtn = el("button", { type: "button", className: "btn btn-ghost btn-small", text: "Отмена" });
+      cancelBtn.addEventListener("click", () => { openNotesDishId = null; render(); });
+
+      const save = async () => {
+        if (input.value.length > MAX_NOTES_LENGTH) {
+          showMessage("Notes too long");
+          return;
+        }
+        saveBtn.disabled = true;
+        try {
+          await api("/api/dishes/" + dish.id, { method: "PUT", body: { notes: input.value } });
+          showMessage("Заметка сохранена", "info");
+          await loadMenu();
+        } catch {
+          // сообщение уже показано в api(); введённый текст остаётся в поле
+        } finally {
+          saveBtn.disabled = false;
+        }
+      };
+      saveBtn.addEventListener("click", save);
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+          event.preventDefault();
+          save();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          openNotesDishId = null;
+          render();
+        }
+      });
+
+      const actions = el("div", { className: "notes-actions" }, saveBtn, cancelBtn, counter);
+      item.append(el("div", { className: "notes-form" }, input, actions));
+
+      // Фокус возвращается только при раскрытии заметки, чтобы полная
+      // перерисовка после других действий не перехватывала ввод.
+      if (notesFocusPending === dish.id) {
+        notesFocusPending = null;
+        requestAnimationFrame(() => input.focus());
+      }
+      return item;
+    }
+
+    function toggleNotes(dishId) {
+      openNotesDishId = openNotesDishId === dishId ? null : dishId;
+      notesFocusPending = openNotesDishId;
+      editing = null;
+      adding = null;
+      render();
+    }
+
     function iconButton(icon, label, handler) {
       const button = el("button", { type: "button", className: "icon-btn", title: label, "aria-label": label });
       button.innerHTML = ICONS[icon];
@@ -421,6 +559,7 @@
             clearToken();
             editing = null;
             adding = null;
+            openNotesDishId = null;
             showMessage("Вы вышли из режима администратора", "info");
             render();
           }
@@ -495,6 +634,7 @@
               if (activeCategoryId !== category.id) {
                 activeCategoryId = category.id;
                 adding = null;
+                openNotesDishId = null;
                 render();
               }
             }
@@ -511,6 +651,7 @@
               try {
                 await api("/api/categories/" + category.id, { method: "DELETE" });
                 if (activeCategoryId === category.id) activeCategoryId = null;
+                openNotesDishId = null;
                 await loadMenu();
               } catch {
                 // сообщение уже показано в api()
@@ -538,7 +679,7 @@
           categoriesFooter.append(el("button", {
             className: "btn btn-add",
             text: "+ Категория",
-            onclick: () => { adding = "category"; editing = null; render(); }
+            onclick: () => { adding = "category"; editing = null; openNotesDishId = null; render(); }
           }));
         }
       }
@@ -578,17 +719,25 @@
             onCancel: () => { editing = null; render(); }
           }));
         } else {
-          row.append(el("span", { className: "row-name", text: dish.name }));
+          row.append(el("button", {
+            className: "row-name",
+            text: dish.name,
+            title: "Показать заметку",
+            "aria-expanded": String(openNotesDishId === dish.id),
+            onclick: () => toggleNotes(dish.id)
+          }));
 
           if (isAdmin()) {
             row.append(iconButton("edit", "Редактировать", () => {
               editing = { type: "dish", id: dish.id };
               adding = null;
+              openNotesDishId = null;
               render();
             }));
             row.append(iconButton("delete", "Удалить", async () => {
               if (!confirm("Удалить блюдо «" + dish.name + "»?")) return;
               try {
+                if (openNotesDishId === dish.id) openNotesDishId = null;
                 await api("/api/dishes/" + dish.id, { method: "DELETE" });
                 await loadMenu();
               } catch {
@@ -599,6 +748,9 @@
         }
 
         dishesList.append(row);
+        if (!isEditing && openNotesDishId === dish.id) {
+          dishesList.append(createNotesBlock(dish));
+        }
       }
 
       if (isAdmin()) {
@@ -616,7 +768,7 @@
           dishesFooter.append(el("button", {
             className: "btn btn-add",
             text: "+ Блюдо",
-            onclick: () => { adding = "dish"; editing = null; render(); }
+            onclick: () => { adding = "dish"; editing = null; openNotesDishId = null; render(); }
           }));
         }
       }
