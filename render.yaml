@@ -1,0 +1,24 @@
+# Blueprint для Render: Web Service «Кулинарного трекера».
+# Секреты (ADMIN_PASSWORD, ALLOWED_ORIGIN, DATABASE_URL, TURSO_AUTH_TOKEN)
+# задаются в дашборде Render и НЕ хранятся в репозитории.
+
+services:
+  - type: web
+    name: kulinar-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ALLOWED_ORIGIN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false

@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Кулинарный трекер</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #f7f4ef;
+      color: #3a3330;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 14px 20px;
+      background: #ffffff;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      color: #b34a26;
+    }
+
+    .auth-area { display: flex; align-items: center; gap: 8px; }
+
+    .auth-form { display: flex; align-items: center; gap: 6px; }
+
+    .auth-form input {
+      font: inherit;
+      width: 140px;
+      padding: 7px 10px;
+      border: 1px solid #d8cfc8;
+      border-radius: 8px;
+    }
+
+    main {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      background: #ffffff;
+      border-radius: 14px;
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .panel-title {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #8a7d76;
+    }
+
+    .list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 34px;
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+
+    .row:hover { background: #faf6f2; }
+
+    .row.active { background: #fdeae0; }
+
+    .row-name {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 4px;
+      border: none;
+      background: none;
+      font: inherit;
+      color: inherit;
+      text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    button.row-name { cursor: pointer; }
+
+    .row.active .row-name { color: #b34a26; font-weight: 600; }
+
+    .icon-btn {
+      display: inline-flex;
+      flex: 0 0 auto;
+      padding: 4px;
+      border: none;
+      border-radius: 6px;
+      background: none;
+      color: #b9b0aa;
+      line-height: 0;
+      cursor: pointer;
+    }
+
+    .icon-btn:hover { color: #d64541; }
+
+    .icon-btn svg { display: block; }
+
+    .panel-footer { margin-top: 10px; }
+
+    .btn {
+      font: inherit;
+      padding: 7px 12px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .btn-small { padding: 5px 10px; font-size: 13px; }
+
+    .btn-primary { background: #c1502e; color: #ffffff; }
+    .btn-primary:hover { background: #a8431f; }
+    .btn-primary:disabled { opacity: 0.6; cursor: default; }
+
+    .btn-ghost { background: none; border-color: #d8cfc8; color: #6b5f58; }
+    .btn-ghost:hover { background: #f6f1ec; }
+
+    .btn-add {
+      width: 100%;
+      background: none;
+      border: 1px dashed #d9a08c;
+      color: #b34a26;
+    }
+
+    .btn-add:hover { background: #fdf1ea; }
+
+    button:focus-visible, input:focus-visible {
+      outline: 2px solid #e8b39e;
+      outline-offset: 1px;
+    }
+
+    .inline-form { display: flex; gap: 6px; width: 100%; }
+
+    .inline-form input {
+      flex: 1;
+      min-width: 0;
+      font: inherit;
+      padding: 6px 9px;
+      border: 1px solid #d8cfc8;
+      border-radius: 8px;
+    }
+
+    .empty {
+      padding: 8px 6px;
+      font-size: 14px;
+      color: #9a8d86;
+    }
+
+    .banner {
+      width: calc(100% - 40px);
+      max-width: 960px;
+      margin: 14px auto 0;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    .banner.error {
+      background: #fdecea;
+      border: 1px solid #f3c2bb;
+      color: #a03427;
+    }
+
+    .banner.info {
+      background: #eef6ec;
+      border: 1px solid #cfe5c9;
+      color: #35682c;
+    }
+
+    @media (max-width: 767px) {
+      main {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 12px;
+      }
+
+      .banner { width: calc(100% - 24px); }
+
+      #categories-panel { padding: 10px; }
+
+      #categories-panel .panel-title { display: none; }
+
+      #categories-list {
+        flex-direction: row;
+        gap: 6px;
+        overflow-x: auto;
+        padding-bottom: 6px;
+      }
+
+      #categories-list .row { flex: 0 0 auto; }
+
+      #categories-list .row-name { max-width: 60vw; }
+    }
+
+    @media (max-width: 400px) {
+      .auth-form input { width: 110px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Кулинарный трекер</h1>
+    <div id="auth-area" class="auth-area"></div>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <main>
+    <section class="panel" id="categories-panel">
+      <h2 class="panel-title">Категории</h2>
+      <ul id="categories-list" class="list"></ul>
+      <div id="categories-footer" class="panel-footer"></div>
+    </section>
+
+    <section class="panel" id="dishes-panel">
+      <h2 id="dishes-title" class="panel-title">Блюда</h2>
+      <div id="dishes-empty" class="empty" hidden></div>
+      <ul id="dishes-list" class="list"></ul>
+      <div id="dishes-footer" class="panel-footer"></div>
+    </section>
+  </main>
+
+  <script>
+    const BACKEND_URL = "https://kulinar-backend.onrender.com";
+    const TOKEN_KEY = "kulinar_token";
+    const MAX_NAME_LENGTH = 100;
+
+    // Иконки — статическая разметка. Пользовательские строки всегда идут
+    // через textContent, innerHTML используется только для этих констант.
+    const ICONS = {
+      edit: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
+      delete: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>'
+    };
+
+    const bannerEl = document.getElementById("banner");
+    const authArea = document.getElementById("auth-area");
+    const categoriesList = document.getElementById("categories-list");
+    const categoriesFooter = document.getElementById("categories-footer");
+    const dishesTitle = document.getElementById("dishes-title");
+    const dishesList = document.getElementById("dishes-list");
+    const dishesEmpty = document.getElementById("dishes-empty");
+    const dishesFooter = document.getElementById("dishes-footer");
+
+    let categories = [];
+    let activeCategoryId = null;
+    let editing = null;   // { type: "category" | "dish", id: number }
+    let adding = null;    // "category" | "dish"
+    let loginOpen = false;
+    let bannerTimer = null;
+
+    // --- Утилиты -------------------------------------------------------------
+
+    function el(tag, props = {}, ...children) {
+      const node = document.createElement(tag);
+      for (const [key, value] of Object.entries(props)) {
+        if (key === "className") node.className = value;
+        else if (key === "text") node.textContent = value;
+        else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+        else node.setAttribute(key, value);
+      }
+      for (const child of children) node.append(child);
+      return node;
+    }
+
+    const getToken = () => localStorage.getItem(TOKEN_KEY) || "";
+    const setToken = (token) => localStorage.setItem(TOKEN_KEY, token);
+    const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+    const isAdmin = () => Boolean(getToken());
+
+    function showMessage(text, type = "error") {
+      bannerEl.textContent = text;
+      bannerEl.className = "banner " + type;
+      bannerEl.hidden = false;
+      clearTimeout(bannerTimer);
+      bannerTimer = setTimeout(() => { bannerEl.hidden = true; }, 5000);
+    }
+
+    function normalizeActive() {
+      if (!categories.some((category) => category.id === activeCategoryId)) {
+        activeCategoryId = categories.length > 0 ? categories[0].id : null;
+      }
+    }
+
+    // --- Сеть ----------------------------------------------------------------
+
+    async function api(path, { method = "GET", body, isLogin = false } = {}) {
+      const headers = {};
+      if (body !== undefined) headers["Content-Type"] = "application/json";
+      const token = getToken();
+      if (token && !isLogin) headers["Authorization"] = "Bearer " + token;
+
+      let response;
+      try {
+        response = await fetch(BACKEND_URL + path, {
+          method,
+          headers,
+          body: body !== undefined ? JSON.stringify(body) : undefined
+        });
+      } catch {
+        showMessage("Не удалось подключиться к серверу");
+        throw new Error("network");
+      }
+
+      let data = null;
+      try { data = await response.json(); } catch { /* ответ не JSON */ }
+
+      if (!response.ok) {
+        if (response.status === 401 && !isLogin) {
+          clearToken();
+          editing = null;
+          adding = null;
+          loginOpen = false;
+          showMessage("Сессия истекла, войдите заново");
+          render();
+        } else {
+          showMessage(data && data.error ? data.error : "Ошибка сервера");
+        }
+        throw new Error(data && data.error ? data.error : "HTTP " + response.status);
+      }
+      return data;
+    }
+
+    async function loadMenu() {
+      try {
+        const data = await api("/api/menu");
+        categories = Array.isArray(data.categories) ? data.categories : [];
+        render();
+      } catch {
+        // сообщение об ошибке уже показано в api()
+      }
+    }
+
+    // --- Инлайн-формы --------------------------------------------------------
+
+    function createInlineForm({ initialValue = "", placeholder = "", onSubmit, onCancel }) {
+      const input = el("input", { type: "text", placeholder, maxlength: String(MAX_NAME_LENGTH) });
+      input.value = initialValue;
+
+      const submitBtn = el("button", { type: "submit", className: "btn btn-primary btn-small", text: "Сохранить" });
+      const cancelBtn = el("button", { type: "button", className: "btn btn-ghost btn-small", text: "Отмена" });
+      cancelBtn.addEventListener("click", onCancel);
+
+      const form = el("form", { className: "inline-form" }, input, submitBtn, cancelBtn);
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        submitBtn.disabled = true;
+        try {
+          await onSubmit(input.value);
+        } finally {
+          submitBtn.disabled = false;
+        }
+      });
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          onCancel();
+        }
+      });
+
+      requestAnimationFrame(() => { input.focus(); input.select(); });
+      return form;
+    }
+
+    function iconButton(icon, label, handler) {
+      const button = el("button", { type: "button", className: "icon-btn", title: label, "aria-label": label });
+      button.innerHTML = ICONS[icon];
+      button.addEventListener("click", handler);
+      return button;
+    }
+
+    // --- Рендер --------------------------------------------------------------
+
+    function render() {
+      normalizeActive();
+      renderAuth();
+      renderCategories();
+      renderDishes();
+    }
+
+    function renderAuth() {
+      authArea.replaceChildren();
+
+      if (isAdmin()) {
+        authArea.append(el("button", {
+          className: "btn btn-ghost",
+          text: "Выйти",
+          onclick: () => {
+            clearToken();
+            editing = null;
+            adding = null;
+            showMessage("Вы вышли из режима администратора", "info");
+            render();
+          }
+        }));
+        return;
+      }
+
+      if (!loginOpen) {
+        authArea.append(el("button", {
+          className: "btn btn-ghost",
+          text: "Вход для админа",
+          onclick: () => { loginOpen = true; render(); }
+        }));
+        return;
+      }
+
+      const input = el("input", { type: "password", placeholder: "Пароль", autocomplete: "current-password" });
+      const submitBtn = el("button", { type: "submit", className: "btn btn-primary", text: "Войти" });
+      const cancelBtn = el("button", { type: "button", className: "btn btn-ghost", text: "Отмена" });
+      cancelBtn.addEventListener("click", () => { loginOpen = false; render(); });
+
+      const form = el("form", { className: "auth-form" }, input, submitBtn, cancelBtn);
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        submitBtn.disabled = true;
+        try {
+          const data = await api("/api/login", { method: "POST", body: { password: input.value }, isLogin: true });
+          setToken(data.token);
+          loginOpen = false;
+          showMessage("Вы вошли в режим администратора", "info");
+          render();
+        } catch {
+          // сообщение уже показано в api()
+        } finally {
+          submitBtn.disabled = false;
+        }
+      });
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          loginOpen = false;
+          render();
+        }
+      });
+
+      authArea.append(form);
+      requestAnimationFrame(() => input.focus());
+    }
+
+    function renderCategories() {
+      categoriesList.replaceChildren();
+      categoriesFooter.replaceChildren();
+
+      for (const category of categories) {
+        const isEditing = editing && editing.type === "category" && editing.id === category.id;
+        const row = el("li", { className: "row" + (category.id === activeCategoryId ? " active" : "") });
+
+        if (isEditing) {
+          row.append(createInlineForm({
+            initialValue: category.name,
+            onSubmit: async (name) => {
+              await api("/api/categories/" + category.id, { method: "PUT", body: { name } });
+              editing = null;
+              await loadMenu();
+            },
+            onCancel: () => { editing = null; render(); }
+          }));
+        } else {
+          row.append(el("button", {
+            className: "row-name",
+            text: category.name,
+            onclick: () => {
+              if (activeCategoryId !== category.id) {
+                activeCategoryId = category.id;
+                adding = null;
+                render();
+              }
+            }
+          }));
+
+          if (isAdmin()) {
+            row.append(iconButton("edit", "Редактировать", () => {
+              editing = { type: "category", id: category.id };
+              adding = null;
+              render();
+            }));
+            row.append(iconButton("delete", "Удалить", async () => {
+              if (!confirm("Удалить категорию «" + category.name + "» и все её блюда?")) return;
+              try {
+                await api("/api/categories/" + category.id, { method: "DELETE" });
+                if (activeCategoryId === category.id) activeCategoryId = null;
+                await loadMenu();
+              } catch {
+                // сообщение уже показано в api()
+              }
+            }));
+          }
+        }
+
+        categoriesList.append(row);
+      }
+
+      if (isAdmin()) {
+        if (adding === "category") {
+          categoriesFooter.append(createInlineForm({
+            placeholder: "Название категории",
+            onSubmit: async (name) => {
+              const data = await api("/api/categories", { method: "POST", body: { name } });
+              adding = null;
+              activeCategoryId = data.id;
+              await loadMenu();
+            },
+            onCancel: () => { adding = null; render(); }
+          }));
+        } else {
+          categoriesFooter.append(el("button", {
+            className: "btn btn-add",
+            text: "+ Категория",
+            onclick: () => { adding = "category"; editing = null; render(); }
+          }));
+        }
+      }
+    }
+
+    function renderDishes() {
+      const active = categories.find((category) => category.id === activeCategoryId) || null;
+
+      dishesTitle.textContent = active ? "Блюда: " + active.name : "Блюда";
+      dishesList.replaceChildren();
+      dishesFooter.replaceChildren();
+      dishesEmpty.hidden = true;
+
+      if (!active) {
+        dishesEmpty.textContent = isAdmin() ? "Создайте первую категорию" : "Пока нет ни одной категории";
+        dishesEmpty.hidden = false;
+        return;
+      }
+
+      if (active.dishes.length === 0) {
+        dishesEmpty.textContent = "Список пуст";
+        dishesEmpty.hidden = false;
+      }
+
+      for (const dish of active.dishes) {
+        const isEditing = editing && editing.type === "dish" && editing.id === dish.id;
+        const row = el("li", { className: "row" });
+
+        if (isEditing) {
+          row.append(createInlineForm({
+            initialValue: dish.name,
+            onSubmit: async (name) => {
+              await api("/api/dishes/" + dish.id, { method: "PUT", body: { name } });
+              editing = null;
+              await loadMenu();
+            },
+            onCancel: () => { editing = null; render(); }
+          }));
+        } else {
+          row.append(el("span", { className: "row-name", text: dish.name }));
+
+          if (isAdmin()) {
+            row.append(iconButton("edit", "Редактировать", () => {
+              editing = { type: "dish", id: dish.id };
+              adding = null;
+              render();
+            }));
+            row.append(iconButton("delete", "Удалить", async () => {
+              if (!confirm("Удалить блюдо «" + dish.name + "»?")) return;
+              try {
+                await api("/api/dishes/" + dish.id, { method: "DELETE" });
+                await loadMenu();
+              } catch {
+                // сообщение уже показано в api()
+              }
+            }));
+          }
+        }
+
+        dishesList.append(row);
+      }
+
+      if (isAdmin()) {
+        if (adding === "dish") {
+          dishesFooter.append(createInlineForm({
+            placeholder: "Название блюда",
+            onSubmit: async (name) => {
+              await api("/api/dishes", { method: "POST", body: { category_id: active.id, name } });
+              adding = null;
+              await loadMenu();
+            },
+            onCancel: () => { adding = null; render(); }
+          }));
+        } else {
+          dishesFooter.append(el("button", {
+            className: "btn btn-add",
+            text: "+ Блюдо",
+            onclick: () => { adding = "dish"; editing = null; render(); }
+          }));
+        }
+      }
+    }
+
+    loadMenu();
+  </script>
+</body>
+</html>
