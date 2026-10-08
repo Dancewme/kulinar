@@ -37,8 +37,8 @@ project/
     app.py
     requirements.txt
     smoke_test.sh        (curl-скрипт проверки API, без pytest)
-  frontend/
-    index.html           (деплой на GitHub Pages)
+  docs/
+    index.html           (деплой на GitHub Pages, папка /docs)
   render.yaml            (Blueprint для Render)
   DEPLOY.md              (пошаговая инструкция по деплою)
   .gitignore             (database.db, local.db, .venv/, __pycache__/, *.pyc)
@@ -334,7 +334,7 @@ const BACKEND_URL = "https://<имя-сервиса>.onrender.com";
   TURSO_AUTH_TOKEN, прописать их в Environment на Render.
 - GitHub Pages работает по HTTPS, поэтому BACKEND_URL тоже HTTPS,
   иначе браузер заблокирует запросы (mixed content).
-- Локальный тест фронта: python -m http.server 5500 в каталоге frontend
+- Локальный тест фронта: python -m http.server 5500 в каталоге docs
   (через file:// не сработает из-за CORS). Origin http://localhost:5500
   или http://127.0.0.1:5500 должен быть указан в ALLOWED_ORIGIN.
 - Локальный запуск бэкенда для разработки:

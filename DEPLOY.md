@@ -60,7 +60,7 @@ turso db tokens create kulinar       # -> токен доступа
 
 ## 3. Обновить фронтенд
 
-В `frontend/index.html` заменить адрес бэкенда на свой:
+В `docs/index.html` заменить адрес бэкенда на свой:
 
 ```js
 const BACKEND_URL = "https://<имя-сервиса>.onrender.com";
@@ -68,10 +68,9 @@ const BACKEND_URL = "https://<имя-сервиса>.onrender.com";
 
 ## 4. Включить GitHub Pages
 
-1. Запушить `frontend/index.html` в репозиторий.
+1. Запушить `docs/index.html` в репозиторий.
 2. Repository -> Settings -> Pages -> Source: `Deploy from a branch`,
-   Branch: `main`, папка `/frontend` (или перенести файл в `docs/` — тогда
-   папка `docs`). Сохранить.
+   Branch: `main`, папка `/docs`. Сохранить.
 3. Через пару минут сайт откроется по адресу
    `https://<username>.github.io/<repo>/`.
 
@@ -108,3 +107,7 @@ bash smoke_test.sh https://<имя-сервиса>.onrender.com
   ```
 
   `local.db` создастся рядом с `app.py` и не попадёт в git (см. `.gitignore`).
+
+  Фронт для локального теста: `python -m http.server 5500` в каталоге `docs`,
+  открыть `http://localhost:5500`.
+

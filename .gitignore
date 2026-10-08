@@ -4,3 +4,15 @@ database.db
 local.db
 .venv/
 .env
+
+# временные файлы отладки
+*.log
+_diag.sh
+_probe*.py
+_restart.sh
+_check_restart.sh
+_dev.sh
+_kill.sh
+
+# локальная выжимка состояния, не для репозитория
+state.md

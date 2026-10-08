@@ -233,16 +233,25 @@ request DELETE /api/categories/999999 "" "$TOKEN"
 expect_code "DELETE несуществующей категории -> 404" 404
 
 # --- 7. Пароль не утекает во фронтенд --------------------------------------
+# Фронт лежит в docs/index.html (GitHub Pages раздаёт эту папку);
+# старый путь frontend/ поддержан как fallback.
 section "Пароль во фронтенде"
-FRONTEND="$(dirname "$0")/../frontend/index.html"
-if [ -f "$FRONTEND" ]; then
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+FRONTEND=""
+for candidate in "$SCRIPT_DIR/../docs/index.html" "$SCRIPT_DIR/../frontend/index.html"; do
+  if [ -f "$candidate" ]; then
+    FRONTEND="$candidate"
+    break
+  fi
+done
+if [ -n "$FRONTEND" ]; then
   if grep -qF "admin123" "$FRONTEND"; then
-    fail "пароль admin123 найден в frontend/index.html"
+    fail "пароль admin123 найден в $FRONTEND"
   else
-    pass "пароля нет в frontend/index.html"
+    pass "пароля нет в $FRONTEND"
   fi
 else
-  echo "  SKIP frontend/index.html не найден ($FRONTEND)"
+  fail "index.html не найден ни в docs/, ни в frontend/"
 fi
 
 # --- Cleanup ----------------------------------------------------------------
